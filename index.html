@@ -12,41 +12,82 @@
       padding: 20px;
     }
 
+    .container {
+      max-width: 420px;
+      margin: auto;
+    }
+
     h1 {
       text-align: center;
+      font-weight: 600;
+      margin-bottom: 5px;
     }
 
     .streak {
       text-align: center;
-      font-size: 40px;
+      font-size: 42px;
+      margin-bottom: 10px;
+    }
+
+    .stats {
+      text-align: center;
+      font-size: 14px;
+      opacity: 0.7;
       margin-bottom: 20px;
     }
 
     .card {
       background: #111;
       padding: 15px;
-      border-radius: 12px;
+      border-radius: 14px;
       margin-bottom: 10px;
       display: flex;
       justify-content: space-between;
+      align-items: center;
+    }
+
+    .toggle {
+      width: 50px;
+      height: 28px;
+      border-radius: 20px;
+      background: #333;
+      position: relative;
+      transition: 0.3s;
+    }
+
+    .toggle.active {
+      background: #22c55e;
+    }
+
+    .toggle::after {
+      content: "";
+      width: 24px;
+      height: 24px;
+      background: white;
+      border-radius: 50%;
+      position: absolute;
+      top: 2px;
+      left: 2px;
+      transition: 0.3s;
+    }
+
+    .toggle.active::after {
+      left: 24px;
     }
 
     .calendar {
       display: grid;
       grid-template-columns: repeat(7, 1fr);
-      gap: 5px;
+      gap: 6px;
       margin-top: 20px;
     }
 
     .day {
       padding-top: 100%;
-      border-radius: 6px;
+      border-radius: 8px;
       position: relative;
       background: #1a1a1a;
     }
-
-    .day.green { background: #22c55e; }
-    .day.red { background: #ef4444; }
 
     .day span {
       position: absolute;
@@ -55,27 +96,48 @@
       font-size: 10px;
     }
 
+    .green { background: #22c55e; }
+    .yellow { background: #eab308; }
+    .red { background: #ef4444; }
+
     .log {
       margin-top: 20px;
-      font-size: 14px;
+      font-size: 13px;
       opacity: 0.8;
+      line-height: 1.5;
     }
 
   </style>
 </head>
 <body>
 
+<div class="container">
+
 <h1>🔥 Streak</h1>
 <div class="streak" id="streak">0</div>
+<div class="stats" id="stats">0% consistency</div>
 
-<div class="card" onclick="logTask('wake')">Wake up</div>
-<div class="card" onclick="logTask('workout')">Workout</div>
-<div class="card" onclick="logTask('walk')">Walk</div>
-<div class="card" onclick="logTask('eat')">Eat</div>
+<div class="card" onclick="toggle('wake')">
+  Wake up <div class="toggle" id="wake"></div>
+</div>
+
+<div class="card" onclick="toggle('workout')">
+  Workout <div class="toggle" id="workout"></div>
+</div>
+
+<div class="card" onclick="toggle('walk')">
+  Walk <div class="toggle" id="walk"></div>
+</div>
+
+<div class="card" onclick="toggle('eat')">
+  Eat <div class="toggle" id="eat"></div>
+</div>
 
 <div class="calendar" id="calendar"></div>
 
 <div class="log" id="log"></div>
+
+</div>
 
 <script>
 let data = JSON.parse(localStorage.getItem("tracker")) || { days:{} };
@@ -83,17 +145,17 @@ let data = JSON.parse(localStorage.getItem("tracker")) || { days:{} };
 const today = new Date().toISOString().split("T")[0];
 
 if (!data.days[today]) {
-  data.days[today] = {};
+  data.days[today] = { wake:null, workout:null, walk:null, eat:null };
 }
 
-function logTask(task) {
+function toggle(task) {
   const time = new Date().toLocaleTimeString();
-  data.days[today][task] = time;
+  data.days[today][task] = data.days[today][task] ? null : time;
   update();
 }
 
-function isComplete(day) {
-  return day.wake && day.workout && day.walk && day.eat;
+function isComplete(d) {
+  return d.wake && d.workout && d.walk && d.eat;
 }
 
 function getStreak() {
@@ -107,16 +169,26 @@ function getStreak() {
   return streak;
 }
 
+function getStats() {
+  let total = Object.keys(data.days).length;
+  let good = Object.values(data.days).filter(isComplete).length;
+  return total ? Math.round((good/total)*100) : 0;
+}
+
 function renderCalendar() {
   const cal = document.getElementById("calendar");
   cal.innerHTML = "";
 
-  Object.keys(data.days).slice(-28).forEach(d => {
+  Object.keys(data.days).slice(-35).forEach(d => {
     const div = document.createElement("div");
     div.className = "day";
 
-    if (isComplete(data.days[d])) div.classList.add("green");
-    else if (Object.keys(data.days[d]).length > 0) div.classList.add("red");
+    const dayData = data.days[d];
+    const count = Object.values(dayData).filter(v => v).length;
+
+    if (count === 4) div.classList.add("green");
+    else if (count >= 2) div.classList.add("yellow");
+    else if (count > 0) div.classList.add("red");
 
     const span = document.createElement("span");
     span.innerText = d.split("-")[2];
@@ -133,15 +205,24 @@ function showLog(date) {
   let text = "📅 " + date + "<br>";
 
   for (let key in logs) {
-    text += key + ": " + logs[key] + "<br>";
+    if (logs[key]) text += key + ": " + logs[key] + "<br>";
   }
 
   document.getElementById("log").innerHTML = text;
 }
 
+function updateUI() {
+  ["wake","workout","walk","eat"].forEach(t => {
+    const el = document.getElementById(t);
+    el.classList.toggle("active", data.days[today][t]);
+  });
+}
+
 function update() {
   localStorage.setItem("tracker", JSON.stringify(data));
   document.getElementById("streak").innerText = getStreak();
+  document.getElementById("stats").innerText = getStats() + "% consistency";
+  updateUI();
   renderCalendar();
 }
 
