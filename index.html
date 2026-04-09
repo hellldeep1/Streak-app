@@ -5,146 +5,98 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <style>
     body {
-      font-family: -apple-system, BlinkMacSystemFont;
+      font-family: -apple-system;
       background: #000;
-      color: #fff;
+      color: white;
       margin: 0;
       padding: 20px;
     }
 
-    .container {
-      max-width: 400px;
-      margin: auto;
-    }
-
     h1 {
       text-align: center;
-      font-weight: 600;
-      margin-bottom: 5px;
     }
 
     .streak {
       text-align: center;
-      font-size: 48px;
-      margin-bottom: 30px;
-      font-weight: 500;
+      font-size: 40px;
+      margin-bottom: 20px;
     }
 
     .card {
       background: #111;
-      border-radius: 16px;
       padding: 15px;
-      margin-bottom: 12px;
+      border-radius: 12px;
+      margin-bottom: 10px;
       display: flex;
       justify-content: space-between;
-      align-items: center;
-    }
-
-    .label {
-      font-size: 17px;
-    }
-
-    .toggle {
-      width: 50px;
-      height: 28px;
-      border-radius: 20px;
-      background: #333;
-      position: relative;
-      transition: 0.3s;
-    }
-
-    .toggle.active {
-      background: #22c55e;
-    }
-
-    .toggle::after {
-      content: "";
-      width: 24px;
-      height: 24px;
-      background: white;
-      border-radius: 50%;
-      position: absolute;
-      top: 2px;
-      left: 2px;
-      transition: 0.3s;
-    }
-
-    .toggle.active::after {
-      left: 24px;
     }
 
     .calendar {
       display: grid;
       grid-template-columns: repeat(7, 1fr);
-      gap: 6px;
-      margin-top: 25px;
+      gap: 5px;
+      margin-top: 20px;
     }
 
     .day {
-      width: 100%;
       padding-top: 100%;
       border-radius: 6px;
+      position: relative;
       background: #1a1a1a;
     }
 
-    .green { background: #22c55e; }
-    .red { background: #ef4444; }
+    .day.green { background: #22c55e; }
+    .day.red { background: #ef4444; }
+
+    .day span {
+      position: absolute;
+      bottom: 5px;
+      right: 5px;
+      font-size: 10px;
+    }
+
+    .log {
+      margin-top: 20px;
+      font-size: 14px;
+      opacity: 0.8;
+    }
 
   </style>
 </head>
 <body>
 
-<div class="container">
-
 <h1>🔥 Streak</h1>
 <div class="streak" id="streak">0</div>
 
-<div class="card" onclick="toggle('wake')">
-  <div class="label">Wake up</div>
-  <div class="toggle" id="wake"></div>
-</div>
-
-<div class="card" onclick="toggle('workout')">
-  <div class="label">Workout</div>
-  <div class="toggle" id="workout"></div>
-</div>
-
-<div class="card" onclick="toggle('walk')">
-  <div class="label">Walk</div>
-  <div class="toggle" id="walk"></div>
-</div>
-
-<div class="card" onclick="toggle('eat')">
-  <div class="label">Eat</div>
-  <div class="toggle" id="eat"></div>
-</div>
+<div class="card" onclick="logTask('wake')">Wake up</div>
+<div class="card" onclick="logTask('workout')">Workout</div>
+<div class="card" onclick="logTask('walk')">Walk</div>
+<div class="card" onclick="logTask('eat')">Eat</div>
 
 <div class="calendar" id="calendar"></div>
 
-</div>
+<div class="log" id="log"></div>
 
 <script>
-let data = JSON.parse(localStorage.getItem("tracker")) || {
-  days: {},
-  streak: 0
-};
+let data = JSON.parse(localStorage.getItem("tracker")) || { days:{} };
 
 const today = new Date().toISOString().split("T")[0];
 
 if (!data.days[today]) {
-  data.days[today] = { wake:false, workout:false, walk:false, eat:false };
+  data.days[today] = {};
 }
 
-function toggle(task) {
-  data.days[today][task] = !data.days[today][task];
-  updateUI();
+function logTask(task) {
+  const time = new Date().toLocaleTimeString();
+  data.days[today][task] = time;
+  update();
 }
 
-function isComplete(d) {
-  return d.wake && d.workout && d.walk && d.eat;
+function isComplete(day) {
+  return day.wake && day.workout && day.walk && day.eat;
 }
 
-function calculateStreak() {
+function getStreak() {
   let streak = 0;
   const dates = Object.keys(data.days).sort().reverse();
 
@@ -152,7 +104,7 @@ function calculateStreak() {
     if (isComplete(data.days[d])) streak++;
     else break;
   }
-  data.streak = streak;
+  return streak;
 }
 
 function renderCalendar() {
@@ -164,27 +116,36 @@ function renderCalendar() {
     div.className = "day";
 
     if (isComplete(data.days[d])) div.classList.add("green");
-    else if (Object.values(data.days[d]).some(v => v)) div.classList.add("red");
+    else if (Object.keys(data.days[d]).length > 0) div.classList.add("red");
+
+    const span = document.createElement("span");
+    span.innerText = d.split("-")[2];
+    div.appendChild(span);
+
+    div.onclick = () => showLog(d);
 
     cal.appendChild(div);
   });
 }
 
-function updateUI() {
-  calculateStreak();
+function showLog(date) {
+  const logs = data.days[date];
+  let text = "📅 " + date + "<br>";
 
-  document.getElementById("streak").innerText = data.streak;
+  for (let key in logs) {
+    text += key + ": " + logs[key] + "<br>";
+  }
 
-  ["wake","workout","walk","eat"].forEach(t => {
-    const el = document.getElementById(t);
-    el.classList.toggle("active", data.days[today][t]);
-  });
-
-  renderCalendar();
-  localStorage.setItem("tracker", JSON.stringify(data));
+  document.getElementById("log").innerHTML = text;
 }
 
-updateUI();
+function update() {
+  localStorage.setItem("tracker", JSON.stringify(data));
+  document.getElementById("streak").innerText = getStreak();
+  renderCalendar();
+}
+
+update();
 </script>
 
 </body>
