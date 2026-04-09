@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Streak Tracker</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont;
+      background: #0f0f0f;
+      color: white;
+      text-align: center;
+      padding: 20px;
+    }
+
+    h1 {
+      margin-bottom: 10px;
+    }
+
+    .streak {
+      font-size: 40px;
+      margin-bottom: 20px;
+    }
+
+    .buttons button {
+      display: block;
+      margin: 10px auto;
+      padding: 15px;
+      width: 80%;
+      max-width: 300px;
+      font-size: 16px;
+      border-radius: 12px;
+      border: none;
+      background: #1f1f1f;
+      color: white;
+    }
+
+    .buttons button.active {
+      background: #22c55e;
+    }
+
+    .calendar {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      gap: 6px;
+      margin-top: 20px;
+    }
+
+    .day {
+      width: 100%;
+      padding-top: 100%;
+      position: relative;
+      border-radius: 6px;
+    }
+
+    .day.green {
+      background: #22c55e;
+    }
+
+    .day.red {
+      background: #ef4444;
+    }
+
+    .day.empty {
+      background: #2a2a2a;
+    }
+  </style>
+</head>
+<body>
+
+<h1>🔥 Streak</h1>
+<div class="streak" id="streak">0</div>
+
+<div class="buttons">
+  <button onclick="toggle('wake')" id="wake">Wake up</button>
+  <button onclick="toggle('workout')" id="workout">Workout</button>
+  <button onclick="toggle('walk')" id="walk">Walk</button>
+  <button onclick="toggle('eat')" id="eat">Eat</button>
+</div>
+
+<div class="calendar" id="calendar"></div>
+
+<script>
+let data = JSON.parse(localStorage.getItem("tracker")) || {
+  days: {},
+  streak: 0
+};
+
+const today = new Date().toISOString().split("T")[0];
+
+if (!data.days[today]) {
+  data.days[today] = {
+    wake: false,
+    workout: false,
+    walk: false,
+    eat: false
+  };
+}
+
+function toggle(task) {
+  data.days[today][task] = !data.days[today][task];
+  save();
+  updateUI();
+}
+
+function isComplete(day) {
+  return day.wake && day.workout && day.walk && day.eat;
+}
+
+function calculateStreak() {
+  let streak = 0;
+  const dates = Object.keys(data.days).sort().reverse();
+
+  for (let d of dates) {
+    if (isComplete(data.days[d])) {
+      streak++;
+    } else {
+      break;
+    }
+  }
+
+  data.streak = streak;
+}
+
+function renderCalendar() {
+  const cal = document.getElementById("calendar");
+  cal.innerHTML = "";
+
+  const dates = Object.keys(data.days).slice(-28);
+
+  dates.forEach(d => {
+    const div = document.createElement("div");
+    div.classList.add("day");
+
+    if (isComplete(data.days[d])) {
+      div.classList.add("green");
+    } else if (
+      data.days[d].wake ||
+      data.days[d].workout ||
+      data.days[d].walk ||
+      data.days[d].eat
+    ) {
+      div.classList.add("red");
+    } else {
+      div.classList.add("empty");
+    }
+
+    cal.appendChild(div);
+  });
+}
+
+function updateUI() {
+  calculateStreak();
+
+  document.getElementById("streak").innerText = data.streak;
+
+  ["wake", "workout", "walk", "eat"].forEach(task => {
+    const btn = document.getElementById(task);
+    if (data.days[today][task]) {
+      btn.classList.add("active");
+    } else {
+      btn.classList.remove("active");
+    }
+  });
+
+  renderCalendar();
+  save();
+}
+
+function save() {
+  localStorage.setItem("tracker", JSON.stringify(data));
+}
+
+updateUI();
+</script>
+
+</body>
+</html>
